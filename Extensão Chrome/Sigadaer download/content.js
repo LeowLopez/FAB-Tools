@@ -1,4 +1,5 @@
 (() => {
+
   const normalizarTexto = texto => {
     return texto
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') //remove acentos
@@ -8,7 +9,7 @@
       .trim();
   };
 
-  const formatarData = dataStr => {
+  const formatarData = dataStr => {//devolve no formato AAAAMMDD
     const partes = dataStr.split('/');
     if (partes.length === 3) {
       return `${partes[2]}${partes[1].padStart(2, '0')}${partes[0].padStart(2, '0')}`;
@@ -16,19 +17,24 @@
     return dataStr;
   };
 
-  async function baixarPdfRenomeado() {
-    console.log('🚀 Iniciando processo de baixar PDF renomeado');
+  const baixarPdfRenomeado = async (modelo) => {
+    if (!modelo) modelo = 'oficio';
+
+    enviarLog('info', `Iniciando processo de baixar PDF renomeado para o modelo: ${modelo}`);
 
     // 1. Abre aba de informações
+    // Lista de Menus > índice 0 (primeiro), índice 1 (segundo item do menu), índice 0 = link => simula clique
     const tab = document.querySelectorAll('.nav-tabs')[0]?.children[1]?.children[0];
     if (!tab) {
-      console.error('❌ Aba "Informações" não encontrada');
+      enviarLog('erro', 'Aba "Informações" não encontrada');
       return;
     }
     tab.click();
     await new Promise(r => setTimeout(r, 1000));
 
-    // 2. Extrai os metadados
+    // 2. Extrai os metadados que estão organizados dentro de parágrafos e negritos, dentro da aba aberta
+    // Organização => <p><b>CAMPO</b>VALOR</p>
+    // Transformar em => dados = {CAMPO1: "VALOR1", CAMPO2: "VALOR2", ...}, então dados['CAMPO_NOME'] = valor_campo
     const dados = {};
     document.querySelectorAll('jhi-documento-tab-details p').forEach(p => {
       const campo = p.querySelector('b')?.textContent?.replace(':', '').trim();
@@ -37,31 +43,39 @@
       if (campo) dados[campo] = valor;
     });
 
-    const p1 = formatarData(dados['Data do Documento'] || '');
-    const p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-    const p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-    const p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-    const p5 = normalizarTexto(dados['Assunto'] || '');
-    const nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+    // 3. Monta o nome do arquivo
+    let p1, p2, p3, p4, p5, nomeArquivo;
+    
+    if(modelo === 'oficio'){//Se não for passado modelo, o padrão é ofício, então usa esse
+      // Implementar um select (no popup.js) para outros modelos para definir outros modos de montar esse nome
+      p1 = formatarData(dados['Data do Documento'] || '');
+      p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
+      p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+      p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+      p5 = normalizarTexto(dados['Assunto'] || '');
+      nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+    }
 
-    console.log('📄 Nome do arquivo personalizado:', nomeArquivo);
+    if(!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
 
-    // 3. Tenta extrair URL do PDF ou clicar no botão de download
+    enviarLog('info', `Nome do arquivo personalizado: ${nomeArquivo}`);
+
+    // 4. Tenta extrair URL do PDF ou clicar no botão de download
     const downloadBtn = Array.from(document.querySelectorAll('button')).find(btn =>
       btn.textContent.includes('Download')
     );
     if (!downloadBtn) {
-      console.error('❌ Botão de download não encontrado!');
+      enviarLog('erro', 'Botão de download não encontrado!');
       return;
     }
 
-    console.log('🖱️ Clicando no botão de download...');
+    enviarLog('info', 'Clicando no botão de download...');
     downloadBtn.click();
 
-    // 4. Espera 2 segundos para garantir que o request aconteça e esteja em cache ou link seja criado
+    // 5. Espera 2 segundos para garantir que o request aconteça e esteja em cache ou link seja criado
     await new Promise(r => setTimeout(r, 2000));
 
-    // 5. Procura algum link <a> ou iframe que contenha .pdf
+    // 6. Procura algum link <a> ou iframe que contenha .pdf
     let pdfUrl = null;
 
     const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
@@ -70,19 +84,19 @@
     const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
     if (!pdfUrl && iframe) pdfUrl = iframe.src;
 
-    console.log('🔎 URL do PDF encontrada:', pdfUrl);
+    enviarLog('info', `URL do PDF encontrada ${pdfUrl}`);
 
     if (!pdfUrl) {
-      console.error('❌ Não foi possível encontrar o link do PDF após o clique!');
+      enviarLog('erro', 'Não foi possível encontrar o link do PDF após o clique!');
       return;
     }
 
-    // 6. Baixa com nome personalizado
+    // 7. Baixa com nome personalizado
     baixarComNomePersonalizado(pdfUrl, nomeArquivo);
   }
 
-  function baixarComNomePersonalizado(url, nome) {
-    console.log("📁 Iniciando download com nome:", nome);
+  const baixarComNomePersonalizado = (url, nome) => {
+    enviarLog('info', `Iniciando download com nome: ${nome}`);
     fetch(url)
       .then(res => res.blob())
       .then(blob => {
@@ -92,15 +106,20 @@
         document.body.appendChild(a);
         a.click();
         a.remove();
-        console.log('✅ Download finalizado como:', nome);
+        enviarLog('ok', `Download finalizado como: ${nome}`);
       })
-      .catch(err => console.error('❌ Erro no fetch personalizado:', err));
+      .catch(err => enviarLog('erro', `Erro no fetch personalizado: ${err}`));
   }
 
-  // Listener para mensagem vinda do popup ou background
+  const enviarLog = (tipo, msg) => {//envia o status para o popup
+    chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
+  }
+
+  // Listener para mensagem vinda do popup ou background (Aqui que aciona a função quando recebe o clique do popup)
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === "baixar_pdf") {
-      baixarPdfRenomeado();
+      baixarPdfRenomeado(msg.modelo);
     }
   });
+
 })();

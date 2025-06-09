@@ -1,19 +1,41 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="utf-8" />
   <title>SIGADAER PDF</title>
   <link rel="stylesheet" href="style.css" />
   <script defer src="popup.js"></script>
 </head>
+
 <body>
+
   <div id="Popup" align="center">
     <p><strong>Baixar PDF Renomeado</strong></p>
+
+    <select id="modeloSelect">
+      <option value="oficio">📄 Ofício</option>
+      <option value="anexo">📎 Anexo</option>
+      <option value="minuta">📝 Minuta</option>
+      <option value="processo">📂 Processo</option>
+      <option value="despacho">📑 Despacho</option>
+      <option value="portaria">📜 Portaria</option>
+      <option value="aux">🧾 Aux</option>
+    </select>
+    <br />
+
     <button id="baixarBtn">⏬ Baixar PDF</button>
-    <br/><br/>
+
+    <br /><br />
   </div>
+
+  <div id="logConsole" style="text-align: left; font-size: 12px; max-height: 300px; overflow-y: auto;">
+  </div>
+
   <div align="right">
-    <a href="https://github.com/LeowLopez" target="_blank">👨‍💻</a>
+    <a href="https://github.com/LeowLopez/FAB-Tools" target="_blank">👨‍💻</a>
   </div>
+
 </body>
+
 </html>
