@@ -45,8 +45,8 @@
 
     // 3. Monta o nome do arquivo
     let p1, p2, p3, p4, p5, nomeArquivo;
-    
-    if(modelo === 'oficio'){//Se não for passado modelo, o padrão é ofício, então usa esse
+
+    if (modelo === 'oficio') {//Se não for passado modelo, o padrão é ofício, então usa esse
       // Implementar um select (no popup.js) para outros modelos para definir outros modos de montar esse nome
       p1 = formatarData(dados['Data do Documento'] || '');
       p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
@@ -56,7 +56,7 @@
       nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
     }
 
-    if(!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
+    if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
 
     enviarLog('info', `Nome do arquivo personalizado: ${nomeArquivo}`);
 
@@ -75,16 +75,27 @@
     // 5. Espera 2 segundos para garantir que o request aconteça e esteja em cache ou link seja criado
     await new Promise(r => setTimeout(r, 2000));
 
-    // 6. Procura algum link <a> ou iframe que contenha .pdf
     let pdfUrl = null;
 
+    // Tenta pegar de <a>
     const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
     if (link) pdfUrl = link.href;
-
+    
+    // Tenta pegar de <iframe>
     const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
     if (!pdfUrl && iframe) pdfUrl = iframe.src;
+    console.log(document.querySelectorAll('iframe'));
 
-    enviarLog('info', `URL do PDF encontrada ${pdfUrl}`);
+    // Se for uma URL do viewer do PDF.js, extrair o link real da query ?file=
+    if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+      const urlObj = new URL(pdfUrl);
+      const realUrl = urlObj.searchParams.get('file');
+      if (realUrl) {
+        pdfUrl = realUrl;
+        enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`);
+      }
+    }
+
 
     if (!pdfUrl) {
       enviarLog('erro', 'Não foi possível encontrar o link do PDF após o clique!');

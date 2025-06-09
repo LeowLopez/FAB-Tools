@@ -12,6 +12,9 @@ document.getElementById('baixarBtn').addEventListener('click', () => {
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.from === 'content_script' && msg.log) {
     const logEl = document.getElementById('logConsole');
+
+    if(logEl.classList.contains('oculto')) logEl.classList.remove('oculto');
+    
     const p = document.createElement('p');
     p.textContent = msg.log;
 
