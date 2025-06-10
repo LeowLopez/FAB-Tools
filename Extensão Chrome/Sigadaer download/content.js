@@ -23,10 +23,9 @@
   ///// FIM FUNÇÕES AUXILIARES --------------------------------------------------------
 
 
-  const baixarPdfRenomeado = async (modelo) => {
-    if (!modelo) modelo = 'oficio';
-
-    enviarLog('info', `Iniciando processo de baixar PDF renomeado para o modelo: ${modelo}`);
+  const extrairDados = async () => {
+    
+    // enviarLog('info', `Iniciando processo de baixar PDF renomeado para o modelo: ${modelo}`);
 
     // 1. Abre aba de informações
     // Lista de Menus > índice 0 (primeiro), índice 1 (segundo item do menu), índice 0 = link => simula clique
@@ -49,67 +48,56 @@
       if (campo) dados[campo] = valor;
     });
 
-    // 3. Monta o nome do arquivo
-    let p1, p2, p3, p4, p5, nomeArquivo;
-
-    if (modelo === 'oficio') {//Se não for passado modelo, o padrão é ofício, então usa esse
-      // Implementar um select (no popup.js) para outros modelos para definir outros modos de montar esse nome
-      p1 = formatarData(dados['Data do Documento'] || '');
-      p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-      p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-      p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-      p5 = normalizarTexto(dados['Assunto'] || '');
-      nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
-    }
-
-    if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
-
-    enviarLog('info', `Nome do arquivo personalizado: ${nomeArquivo}`);
-
-    // 4. Tenta extrair URL do PDF ou clicar no botão de download
-    const downloadBtn = Array.from(document.querySelectorAll('button')).find(btn =>
-      btn.textContent.includes('Download')
-    );
-    if (!downloadBtn) {
-      enviarLog('erro', 'Botão de download não encontrado!');
-      return;
-    }
-
-    enviarLog('info', 'Clicando no botão de download...');
-    downloadBtn.click();
-
-    // 5. Espera 2 segundos para garantir que o request aconteça e esteja em cache ou link seja criado
-    await new Promise(r => setTimeout(r, 2000));
-
-    let pdfUrl = null;
-
-    // Tenta pegar de <a>
-    const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-    if (link) pdfUrl = link.href;
-
-    // Tenta pegar de <iframe>
-    const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
-    if (!pdfUrl && iframe) pdfUrl = iframe.src;
+    return dados;
 
 
-    // Se for uma URL do viewer do PDF.js, extrair o link real da query ?file=
-    if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
-      const urlObj = new URL(pdfUrl);
-      const realUrl = urlObj.searchParams.get('file');
-      if (realUrl) {
-        pdfUrl = realUrl;
-        enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`);
-      }
-    }
 
-
-    if (!pdfUrl) {
-      enviarLog('erro', 'Não foi possível encontrar o link do PDF após o clique!');
-      return;
-    }
+    /*  enviarLog('info', `Nome do arquivo personalizado: ${nomeArquivo}`);
+ 
+     // 4. Tenta extrair URL do PDF ou clicar no botão de download
+     const downloadBtn = Array.from(document.querySelectorAll('button')).find(btn =>
+       btn.textContent.includes('Download')
+     );
+     if (!downloadBtn) {
+       enviarLog('erro', 'Botão de download não encontrado!');
+       return;
+     }
+ 
+     enviarLog('info', 'Clicando no botão de download...');
+     downloadBtn.click();
+ 
+     // 5. Espera 2 segundos para garantir que o request aconteça e esteja em cache ou link seja criado
+     await new Promise(r => setTimeout(r, 2000));
+ 
+     let pdfUrl = null;
+ 
+     // Tenta pegar de <a>
+     const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
+     if (link) pdfUrl = link.href;
+ 
+     // Tenta pegar de <iframe>
+     const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
+     if (!pdfUrl && iframe) pdfUrl = iframe.src;
+ 
+ 
+     // Se for uma URL do viewer do PDF.js, extrair o link real da query ?file=
+     if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+       const urlObj = new URL(pdfUrl);
+       const realUrl = urlObj.searchParams.get('file');
+       if (realUrl) {
+         pdfUrl = realUrl;
+         enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`);
+       }
+     }
+ 
+ 
+     if (!pdfUrl) {
+       enviarLog('erro', 'Não foi possível encontrar o link do PDF após o clique!');
+       return;
+     } */
 
     // 7. Baixa com nome personalizado
-    baixarComNomePersonalizado(pdfUrl, nomeArquivo);
+    // baixarComNomePersonalizado(pdfUrl, nomeArquivo);
     // baixarAnexos({ p1, p2 });
   }
 
@@ -230,7 +218,7 @@
     } */
 
     const anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
-    
+
     // Processar um a um, em sequência
     for (const anexo of anexos) {
       // anexo.linkEl.click();
@@ -269,11 +257,32 @@
     }
   };
 
+  const extrairTitulos = (dados, modelo) => {
+    if (!modelo) modelo = 'oficio';
+    // 3. Monta o nome do arquivo
+    console.log(dados)
+
+    if (modelo === 'oficio') {//Se não for passado modelo, o padrão é ofício, então usa esse
+      // Implementar um select (no popup.js) para outros modelos para definir outros modos de montar esse nome
+      p1 = formatarData(dados['Data do Documento'] || '');
+      p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
+      p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+      p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+      p5 = normalizarTexto(dados['Assunto'] || '');
+      nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+    }
+
+    if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
+
+    return {p1, p2, p3, p4, p5, nomeArquivo};
+  }
 
   // Listener para mensagem vinda do popup ou background (Aqui que aciona a função quando recebe o clique do popup)
-  chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener(async(msg, sender, sendResponse) => {
     if (msg.action === "baixar_pdf") {
-      baixarPdfRenomeado(msg.modelo);
+      const dados = await extrairDados();
+      const titulos = extrairTitulos(dados, msg.modelo);
+      console.log(titulos);
     }
   });
 
