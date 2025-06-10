@@ -24,6 +24,7 @@
 
 
   const extrairDados = async (modelo) => {
+    enviarLog("info", "Extraindo dados...");
     // Lista de Menus > índice 0 (primeiro), índice 1 (segundo item do menu), índice 0 = link => simula clique
     const tab = document.querySelectorAll('.nav-tabs')[0]?.children[1]?.children[0];
     if (!tab) {
@@ -44,13 +45,12 @@
       if (campo) dados[campo] = valor;
     });
 
+    enviarLog("info", "Dados extraídos.");
     return dados;
   }
 
   const extrairTitulos = (dados, modelo) => {
     if (!modelo) modelo = 'oficio';
-    // 3. Monta o nome do arquivo
-    console.log(dados);
 
     // Declare variables at the top
     let p1, p2, p3, p4, p5, nomeArquivo;
@@ -64,10 +64,6 @@
         p5 = normalizarTexto(dados['Assunto'] || '');
         nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
         break;
-
-      // case 'anexo':
-      //     console.log('Processando Anexo');
-      //     break;
 
       case 'minuta':
         // 1) p1: always use the Document Date
@@ -165,7 +161,8 @@
   } // ok!
 
   const baixarAnexos = async (titulos) => {
-
+    enviarLog("info", "Identificando documentos para download...");
+    
     const tabAnexos = document.querySelectorAll('.nav-tabs')[0]?.children[3]?.children[0]; // aba anexos
     if (!tabAnexos) {
       enviarLog('erro', 'Aba "Anexos" não encontrada');
