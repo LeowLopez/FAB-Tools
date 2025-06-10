@@ -5,6 +5,7 @@
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') //remove acentos
       .replace(/\.(docx|xlsx|pptx?|pdf)$/i, '') //remove extensões
       .replace(/[^\w\s-]/g, '') //remove caracteres especiais
+      .replace(/\s*-\s*/g, '-')// substitui " - " → "-"
       //.replace(/\s+/g, '_') //espaços por _
       .trim();
   };
@@ -41,7 +42,7 @@
     }
 
     if (!abaDetalhes) {
-      enviarLog('erro', 'Aba "Informações" não encontrada');
+      enviarLog('erro', 'Aba "Informações" não encontrada!');
       return;
     }
 
@@ -84,103 +85,52 @@
     if (!modelo) modelo = 'oficio';
 
     // Declare variables at the top
-    let p1, p2, p3, p4, p5, nomeArquivo;
+    let DATA, ID, ORIGEM, DESTINO, ASSUNTO, nomeArquivo;
 
     switch (modelo) {
       case 'oficio':
-        p1 = formatarData(dados['Data do Documento'] || '');
-        p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-        p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-        p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-        p5 = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+        DATA = formatarData(dados['Data do Documento'] || '');
+        ID = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));//remove barras
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
+        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'minuta':
-        // 1) p1: always use the Document Date
-        p1 = formatarData(dados['Data do Documento'] || '');
-
-        // 2) p2: prefix "Localizador_" + normalized Localizador
-        p2 = 'Localizador_' + normalizarTexto(dados['Localizador'] || '');
-
-        // 3) p3: normalized Órgão de Origem (or Local de Origem)
-        p3 = normalizarTexto(
-          dados['Órgão de Origem'] || dados['Local de Origem'] || ''
-        );
-
-        // 4) p4: normalized Órgão de Destino
-        p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-
-        // 5) p5: strip accents only, keep parentheses & punctuation
-        p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-        // assemble with "_minuta" suffix
-        nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}_minuta.pdf`;
+        DATA = formatarData(dados['Data do Documento'] || '');
+        ID = 'Localizador_' + normalizarTexto(dados['Localizador'] || '');
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
+        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}_minuta.pdf`;
         break;
 
       case 'processo':
-        p1 = formatarData(dados['Data de elaboração'] || '');
-
-        // 2) prefix "NUP " + NUP with dots & slashes stripped
-        p2 = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));
-
-        // 3) Órgão de Origem (or Local de Origem)
-        p3 = normalizarTexto(
-          dados['Órgão de Origem'] || dados['Local de Origem'] || ''
-        );
-
-        // 4) Órgão de Destino
-        p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-
-        // 5) Assunto: strip accents & special chars (including "/"), then collapse spaces around hyphens
-        p5 = normalizarTexto(dados['Assunto'] || '').replace(/\s*-\s*/g, '-');
-
-        // assemble (no ".pdf" or extra suffix)
-        nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+        DATA = formatarData(dados['Data de elaboração'] || '');
+        ID = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));//remove pontos ou barras
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
+        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'despacho':
-        // 1) Always use the document date
-        p1 = formatarData(dados['Data do Documento'] || '');
-
-        // 2) Full word "Despacho" + Número do Documento (slashes stripped)
-        p2 = 'Despacho ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-
-        // 3) Órgão de Origem (or Local de Origem), normalized
-        p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-
-        // 4) Órgão de Destino, normalized
-        p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-
-        // 5) Assunto: strip accents only, keep all punctuation/spaces
-        p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-
-        // Assemble—no .pdf, no extra suffix
-        nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+        DATA = formatarData(dados['Data do Documento'] || '');
+        ID = 'Despacho ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));//remove barras
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
+        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'portaria':
-        // 1) always use the Document Date
-        p1 = formatarData(dados['Data do Documento'] || '');
-
-        // 2) "Portaria " + Número do Documento (slashes stripped)
-        p2 = 'Portaria ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-
-        // 3) Órgão de Origem (or Local de Origem)
-        p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-
-        // 4) Órgão de Destino (empty in this record)
-        p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-
-        // 5) Assunto:
-        //    • strip accents only
-        //    • remove all "/"
-        //    • collapse spaces around hyphens
-        p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '')
-          .replace(/\s*-\s*/g, '-');       // collapse " - " → "-"
-
-        // assemble (no .pdf, no suffix)
-        nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+        DATA = formatarData(dados['Data do Documento'] || '');
+        ID = 'Portaria ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));//remove barras
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
+        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       default:
@@ -188,79 +138,91 @@
     }
 
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
-    return { p1, p2, p5, nomeArquivo };
+    return { DATA, ID, ASSUNTO, nomeArquivo };
   };
 
-  const baixarAnexos = async (titulos) => {
+  const baixarAnexos = async (titulos, modelo) => {
     enviarLog("info", "Identificando documentos para download...");
 
-    const tabAnexos = document.querySelectorAll('.nav-tabs')[0]?.children[3]?.children[0]; // aba anexos
-    if (!tabAnexos) {
-        enviarLog('erro', 'Aba "Anexos" não encontrada');
-        return;
+    const abasMenu = Array.from(document.querySelectorAll('.nav-tabs li a') || []);
+    let abaAnexos = null;
+    let idAbaAnexos = (modelo === 'processo') ? 'Árvore do Processo' : 'Documento / Anexos / Referências';
+
+    for (const aba of abasMenu) {
+
+      aba.click();// Clica na aba atual
+      await new Promise(resolve => setTimeout(resolve, 300)); // Aguarda um pequeno tempo para a aba renderizar
+
+      let abaNome = aba?.innerText?.trim();
+      if (abaNome === idAbaAnexos) abaAnexos = aba;//identifica onde estão os documentos
+      if (abaAnexos) break;//interrompe o laço
+
     }
 
-    tabAnexos.click();
+    if (!abaAnexos) {
+      enviarLog('erro', 'Aba "Anexos" não encontrada!');
+      return;
+    }
+
+    abaAnexos.click();
+    
     await new Promise(r => setTimeout(r, 1000)); // aguarda para carregar
 
-    const anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
+    let anexos = null;
+    if(modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
+    else anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
 
     // Processar um a um, em sequência
     for (const anexo of anexos) {
-        // Checar o "tipo" antes de baixar
-        const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
-        if (tipoCell) {
-            const tipoText = tipoCell.textContent?.trim() || '';
-            
-            //Pular "Referência do sistema"
-            if (tipoText.includes('Referência do sistema')) {
-                // console.log('Pulando download - Tipo é "Referência do sistema":', tipoText);
-                // enviarLog('info', 'Pulando referência do sistema');
-                continue; // Skip this iteration and go to next anexo
-            }
+      // Checar o "tipo" antes de baixar
+      const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
+      if (tipoCell) {
+        const tipoText = tipoCell.textContent?.trim() || '';
+
+        //Pular "Referência do sistema"
+        if (tipoText.includes('Referência do sistema')) continue;
+      }
+
+      // anexo.linkEl.click();
+      anexo.click();
+      await new Promise(r => setTimeout(r, 2000));
+
+      let pdfUrl = null;
+
+      // Tenta pegar de <a>
+      const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
+      if (link) pdfUrl = link.href;
+
+      // Tenta pegar de <iframe>
+      const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
+      if (!pdfUrl && iframe) pdfUrl = iframe.src;
+
+      // Extrai a URL real se estiver usando PDF.js
+      if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+        const urlObj = new URL(pdfUrl);
+        const realUrl = urlObj.searchParams.get('file');
+        if (realUrl) {
+          pdfUrl = realUrl;
+          /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
         }
+      }
 
-        // anexo.linkEl.click();
-        anexo.click();
-        await new Promise(r => setTimeout(r, 2000));
+      let titulo = anexo?.children[0]?.children[0]?.innerHTML; // Documento principal
+      if (!titulo) titulo = anexo?.children[0]?.innerHTML; // Anexos
+      titulo = normalizarTexto(titulo);
 
-        let pdfUrl = null;
+      if (!pdfUrl) {
+        enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
+        continue;
+      }
 
-        // Tenta pegar de <a>
-        const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-        if (link) pdfUrl = link.href;
+      const { DATA, ID, ASSUNTO, nomeArquivo } = titulos;
 
-        // Tenta pegar de <iframe>
-        const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
-        if (!pdfUrl && iframe) pdfUrl = iframe.src;
+      let nomeBase = 'Nome base';
+      if (ASSUNTO === titulo) nomeBase = nomeArquivo; // Documento principal
+      else nomeBase = `${DATA}_${ID}_${titulo}`; // Anexos
 
-        // Extrai a URL real se estiver usando PDF.js
-        if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
-            const urlObj = new URL(pdfUrl);
-            const realUrl = urlObj.searchParams.get('file');
-            if (realUrl) {
-                pdfUrl = realUrl;
-                /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
-            }
-        }
-
-        let titulo = anexo?.children[0]?.children[0]?.innerHTML; // Documento principal
-        if (!titulo) titulo = anexo?.children[0]?.innerHTML; // Anexos
-        titulo = normalizarTexto(titulo);
-
-        if (!pdfUrl) {
-            enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
-            continue;
-        }
-
-        const { p1, p2, p5, nomeArquivo } = titulos;
-
-        let nomeBase = 'Nome base';
-        if (p5 === titulo) nomeBase = nomeArquivo; // Documento principal
-        else nomeBase = `${p1}_${p2}_${titulo}`; // Anexos
-
-        console.log('📥 Baixando:', titulo, '- Tipo permitido');
-        baixarComNomePersonalizado(pdfUrl, nomeBase);
+      baixarComNomePersonalizado(pdfUrl, nomeBase);
     }
   };
 
@@ -294,8 +256,8 @@
 
       const titulos = extrairTitulos(dados, modelo);
       if (!titulos) return;
-      
-      await baixarAnexos(titulos);
+
+      await baixarAnexos(titulos, modelo);
       enviarLog("info", "Processo finalizado!")
     }
   });
