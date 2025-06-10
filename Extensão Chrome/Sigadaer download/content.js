@@ -3,9 +3,9 @@
   const normalizarTexto = texto => {
     return texto
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') //remove acentos
+      .replace(/\.(docx|xlsx|pptx?|pdf)$/i, '') //remove extensões
       .replace(/[^\w\s-]/g, '') //remove caracteres especiais
       //.replace(/\s+/g, '_') //espaços por _
-      .replace(/\.(docx|xlsx|pptx?|pdf)$/i, '') //remove extensões
       .trim();
   };
 
@@ -23,27 +23,58 @@
   ///// FIM FUNÇÕES AUXILIARES --------------------------------------------------------
 
 
-  const extrairDados = async (modelo) => {
+  const extrairDados = async () => {
     enviarLog("info", "Extraindo dados...");
-    // Lista de Menus > índice 0 (primeiro), índice 1 (segundo item do menu), índice 0 = link => simula clique
-    const tab = document.querySelectorAll('.nav-tabs')[0]?.children[1]?.children[0];
-    if (!tab) {
+
+    const abasMenu = Array.from(document.querySelectorAll('.nav-tabs li a') || []);
+    let abaDetalhes = null;
+
+    for (const aba of abasMenu) {
+
+      aba.click();// Clica na aba atual
+      await new Promise(resolve => setTimeout(resolve, 300)); // Aguarda um pequeno tempo para a aba renderizar
+
+      let abaNome = aba?.innerText?.trim();
+      if (abaNome === 'Detalhes') abaDetalhes = aba;//identifica aba Detalhes
+      if (abaDetalhes) break;//interrompe o laço
+
+    }
+
+    if (!abaDetalhes) {
       enviarLog('erro', 'Aba "Informações" não encontrada');
       return;
     }
-    tab.click();
+
+    abaDetalhes.click();
     await new Promise(r => setTimeout(r, 1000));
 
     // 2. Extrai os metadados que estão organizados dentro de parágrafos e negritos, dentro da aba aberta
     // Organização => <p><b>CAMPO</b>VALOR</p>
     // Transformar em => dados = {CAMPO1: "VALOR1", CAMPO2: "VALOR2", ...}, então dados['CAMPO_NOME'] = valor_campo
     const dados = {};
-    document.querySelectorAll('jhi-documento-tab-details p').forEach(p => {
-      const campo = p.querySelector('b')?.textContent?.replace(':', '').trim();
-      let valor = p.textContent.replace(campo + ':', '').trim();
-      if (p.querySelector('strong')) valor = p.querySelector('strong').textContent.trim();
-      if (campo) dados[campo] = valor;
-    });
+
+    const container = document.querySelector('.tab-content .tab-pane.active');//conteúdo aba ativa
+    if (container) {
+      const paragrafos = container.querySelectorAll('p');
+
+      paragrafos.forEach(p => {
+        const campo = p.querySelector('b')?.textContent?.replace(':', '').trim();
+        let valor = p.textContent.replace(`${campo}:`, '').trim();
+
+        // Se houver <strong>, ele prevalece como valor
+        if (p.querySelector('strong')) {
+          valor = p.querySelector('strong').textContent.trim();
+        }
+
+        if (campo) {
+          dados[campo] = valor;
+        }
+      });
+
+    } else {
+      return enviarLog('erro', 'Nenhum conteúdo encontrado na aba ativa.');
+
+    }
 
     enviarLog("info", "Dados extraídos.");
     return dados;
@@ -88,7 +119,7 @@
         break;
 
       case 'processo':
-        p1 = formatarData(dados['Data do Documento'] || '');
+        p1 = formatarData(dados['Data de elaboração'] || '');
 
         // 2) prefix "NUP " + NUP with dots & slashes stripped
         p2 = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));
@@ -162,7 +193,7 @@
 
   const baixarAnexos = async (titulos) => {
     enviarLog("info", "Identificando documentos para download...");
-    
+
     const tabAnexos = document.querySelectorAll('.nav-tabs')[0]?.children[3]?.children[0]; // aba anexos
     if (!tabAnexos) {
       enviarLog('erro', 'Aba "Anexos" não encontrada');
@@ -243,8 +274,12 @@
       let modelo = msg.modelo;
       if (!modelo) return enviarLog('erro', 'Modelo não definido!');
 
-      const dados = await extrairDados(modelo);
+      const dados = await extrairDados();
+      if (!dados) return;
+
       const titulos = extrairTitulos(dados, modelo);
+      if (!titulos) return;
+      
       await baixarAnexos(titulos);
       enviarLog("info", "Processo finalizado!")
     }
