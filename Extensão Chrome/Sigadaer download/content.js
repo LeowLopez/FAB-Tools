@@ -19,7 +19,7 @@
 
   const enviarLog = (tipo, msg) => {//envia o status para o popup
     chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
-  }
+  };
   ///// FIM FUNÇÕES AUXILIARES --------------------------------------------------------
 
 
@@ -78,7 +78,7 @@
 
     enviarLog("info", "Dados extraídos.");
     return dados;
-  }
+  };
 
   const extrairTitulos = (dados, modelo) => {
     if (!modelo) modelo = 'oficio';
@@ -189,15 +189,15 @@
 
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
     return { p1, p2, p5, nomeArquivo };
-  } // ok!
+  };
 
   const baixarAnexos = async (titulos) => {
     enviarLog("info", "Identificando documentos para download...");
 
     const tabAnexos = document.querySelectorAll('.nav-tabs')[0]?.children[3]?.children[0]; // aba anexos
     if (!tabAnexos) {
-      enviarLog('erro', 'Aba "Anexos" não encontrada');
-      return;
+        enviarLog('erro', 'Aba "Anexos" não encontrada');
+        return;
     }
 
     tabAnexos.click();
@@ -207,48 +207,63 @@
 
     // Processar um a um, em sequência
     for (const anexo of anexos) {
-      // anexo.linkEl.click();
-      anexo.click();
-      await new Promise(r => setTimeout(r, 2000));
-
-      let pdfUrl = null;
-
-      // Tenta pegar de <a>
-      const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-      if (link) pdfUrl = link.href;
-
-      // Tenta pegar de <iframe>
-      const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
-      if (!pdfUrl && iframe) pdfUrl = iframe.src;
-
-      // Extrai a URL real se estiver usando PDF.js
-      if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
-        const urlObj = new URL(pdfUrl);
-        const realUrl = urlObj.searchParams.get('file');
-        if (realUrl) {
-          pdfUrl = realUrl;
-          /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
+        // Checar o "tipo" antes de baixar
+        const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
+        if (tipoCell) {
+            const tipoText = tipoCell.textContent?.trim() || '';
+            
+            //Pular "Referência do sistema"
+            if (tipoText.includes('Referência do sistema')) {
+                // console.log('Pulando download - Tipo é "Referência do sistema":', tipoText);
+                // enviarLog('info', 'Pulando referência do sistema');
+                continue; // Skip this iteration and go to next anexo
+            }
         }
-      }
 
-      let titulo = anexo?.children[0]?.children[0]?.innerHTML;//Documento principal
-      if (!titulo) titulo = anexo?.children[0]?.innerHTML;//Anexos
-      titulo = normalizarTexto(titulo);
+        // anexo.linkEl.click();
+        anexo.click();
+        await new Promise(r => setTimeout(r, 2000));
 
-      if (!pdfUrl) {
-        enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
-        continue;
-      }
+        let pdfUrl = null;
 
-      const { p1, p2, p5, nomeArquivo } = titulos;
+        // Tenta pegar de <a>
+        const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
+        if (link) pdfUrl = link.href;
 
-      let nomeBase = 'Nome base';
-      if (p5 === titulo) nomeBase = nomeArquivo;//Documento principal
-      else nomeBase = `${p1}_${p2}_${titulo}`;//Anexos
+        // Tenta pegar de <iframe>
+        const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
+        if (!pdfUrl && iframe) pdfUrl = iframe.src;
 
-      baixarComNomePersonalizado(pdfUrl, nomeBase);
+        // Extrai a URL real se estiver usando PDF.js
+        if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+            const urlObj = new URL(pdfUrl);
+            const realUrl = urlObj.searchParams.get('file');
+            if (realUrl) {
+                pdfUrl = realUrl;
+                /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
+            }
+        }
+
+        let titulo = anexo?.children[0]?.children[0]?.innerHTML; // Documento principal
+        if (!titulo) titulo = anexo?.children[0]?.innerHTML; // Anexos
+        titulo = normalizarTexto(titulo);
+
+        if (!pdfUrl) {
+            enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
+            continue;
+        }
+
+        const { p1, p2, p5, nomeArquivo } = titulos;
+
+        let nomeBase = 'Nome base';
+        if (p5 === titulo) nomeBase = nomeArquivo; // Documento principal
+        else nomeBase = `${p1}_${p2}_${titulo}`; // Anexos
+
+        console.log('📥 Baixando:', titulo, '- Tipo permitido');
+        baixarComNomePersonalizado(pdfUrl, nomeBase);
     }
   };
+
 
   const baixarComNomePersonalizado = (url, nome) => {
     enviarLog('info', `Iniciando download com nome: ${nome}`);
@@ -266,7 +281,7 @@
 
       })
       .catch(err => enviarLog('erro', `Erro no fetch personalizado: ${err}`));
-  }
+  };
 
   // Listener para mensagem vinda do popup ou background (Aqui que aciona a função quando recebe o clique do popup)
   chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
