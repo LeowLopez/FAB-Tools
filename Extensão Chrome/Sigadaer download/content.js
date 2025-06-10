@@ -257,25 +257,123 @@
     }
   };
 
-  const extrairTitulos = (dados, modelo) => {
+const extrairTitulos = (dados, modelo) => {
     if (!modelo) modelo = 'oficio';
     // 3. Monta o nome do arquivo
-    console.log(dados)
+    console.log(dados);
 
-    if (modelo === 'oficio') {//Se não for passado modelo, o padrão é ofício, então usa esse
-      // Implementar um select (no popup.js) para outros modelos para definir outros modos de montar esse nome
-      p1 = formatarData(dados['Data do Documento'] || '');
-      p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
-      p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
-      p4 = normalizarTexto(dados['Órgão de Destino'] || '');
-      p5 = normalizarTexto(dados['Assunto'] || '');
-      nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+    // Declare variables at the top
+    let p1, p2, p3, p4, p5, nomeArquivo;
+
+    switch (modelo) {
+        case 'oficio':
+            p1 = formatarData(dados['Data do Documento'] || '');
+            p2 = 'Of_' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
+            p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+            p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+            p5 = normalizarTexto(dados['Assunto'] || '');
+            nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+            break;
+
+        // case 'anexo':
+        //     console.log('Processando Anexo');
+        //     break;
+
+        case 'minuta':
+            // 1) p1: always use the Document Date
+            p1 = formatarData(dados['Data do Documento'] || '');
+
+            // 2) p2: prefix "Localizador_" + normalized Localizador
+            p2 = 'Localizador_' + normalizarTexto(dados['Localizador'] || '');
+
+            // 3) p3: normalized Órgão de Origem (or Local de Origem)
+            p3 = normalizarTexto(
+                dados['Órgão de Origem'] || dados['Local de Origem'] || ''
+            );
+
+            // 4) p4: normalized Órgão de Destino
+            p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+
+            // 5) p5: strip accents only, keep parentheses & punctuation
+            p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            // assemble with "_minuta" suffix
+            nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}_minuta.pdf`;
+            break;
+
+        case 'processo':
+            p1 = formatarData(dados['Data do Documento'] || '');
+
+            // 2) prefix "NUP " + NUP with dots & slashes stripped
+            p2 = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));
+
+            // 3) Órgão de Origem (or Local de Origem)
+            p3 = normalizarTexto(
+                dados['Órgão de Origem'] || dados['Local de Origem'] || ''
+            );
+
+            // 4) Órgão de Destino
+            p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+
+            // 5) Assunto: strip accents & special chars (including "/"), then collapse spaces around hyphens
+            p5 = normalizarTexto(dados['Assunto'] || '').replace(/\s*-\s*/g, '-');
+
+            // assemble (no ".pdf" or extra suffix)
+            nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+            break;
+
+        case 'despacho':
+            // 1) Always use the document date
+            p1 = formatarData(dados['Data do Documento'] || '');
+
+            // 2) Full word "Despacho" + Número do Documento (slashes stripped)
+            p2 = 'Despacho ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
+
+            // 3) Órgão de Origem (or Local de Origem), normalized
+            p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+
+            // 4) Órgão de Destino, normalized
+            p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+
+            // 5) Assunto: strip accents only, keep all punctuation/spaces
+            p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+            // Assemble—no .pdf, no extra suffix
+            nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+            break;
+
+        case 'portaria':
+            // 1) always use the Document Date
+            p1 = formatarData(dados['Data do Documento'] || '');
+
+            // 2) "Portaria " + Número do Documento (slashes stripped)
+            p2 = 'Portaria ' + normalizarTexto((dados['Número do Documento'] || '').replace(/\//g, ''));
+
+            // 3) Órgão de Origem (or Local de Origem)
+            p3 = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+
+            // 4) Órgão de Destino (empty in this record)
+            p4 = normalizarTexto(dados['Órgão de Destino'] || '');
+
+            // 5) Assunto:
+            //    • strip accents only
+            //    • remove all "/"
+            //    • collapse spaces around hyphens
+            p5 = (dados['Assunto'] || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '')
+                .replace(/\s*-\s*/g, '-');       // collapse " - " → "-"
+
+            // assemble (no .pdf, no suffix)
+            nomeArquivo = `${p1}_${p2}_${p3}-${p4}_${p5}.pdf`;
+            break;
+
+        default:
+            return enviarLog('erro', `Modelo '${modelo}' não implementado.`);
     }
-
+    
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
-
     return {p1, p2, p3, p4, p5, nomeArquivo};
-  }
+} // ok!
+
 
   // Listener para mensagem vinda do popup ou background (Aqui que aciona a função quando recebe o clique do popup)
   chrome.runtime.onMessage.addListener(async(msg, sender, sendResponse) => {

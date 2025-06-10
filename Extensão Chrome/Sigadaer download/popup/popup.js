@@ -33,6 +33,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     }
 
     logEl.appendChild(p);
-    logEl.scrollTop = logEl.scrollHeight; // rola para o fim
+    logEl.scrollTop = logEl.scrollHeight; // rola para o fim? 8==> ? lá ele
   }
 });
