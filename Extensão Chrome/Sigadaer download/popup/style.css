@@ -69,3 +69,33 @@ body {
 .oculto {
   display: none;
 }
+
+.ocultoCreditos {
+  display: none;
+}
+
+#creditos {
+  margin-top: 20px;
+  font-family: Arial, sans-serif;
+  font-size: 0.9em;
+}
+
+#creditos a {
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: bold;
+}
+#creditos .semLink {
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: bold;
+  color: #333;
+}
+
+#creditosDetalhados {
+  margin-top: 10px;
+  text-align: left;
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
