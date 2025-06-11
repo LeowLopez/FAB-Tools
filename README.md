@@ -15,7 +15,7 @@
 
 ## Para devs
 
-Em caso de os elementos da página do SIGADAER mudar e não encontrar mais os elementos para montar os objetos:
+Em caso de os elementos da página do SIGADAER mudarem e não encontrar mais os elementos para montar os objetos:
 
    ```
       document.querySelectorAll('.nav-tabs')[0].children[3].children[0].click();//procurar manualmente via inspecionar elemento;
