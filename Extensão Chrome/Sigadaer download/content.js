@@ -160,7 +160,7 @@
     }
 
     if (!abaAnexos) {
-      enviarLog('erro', 'Aba "Anexos" não encontrada!');
+      enviarLog('erro', `Aba ${idAbaAnexos} não encontrada! (Verifique se o modelo selecionado está correto)`);
       return;
     }
 
@@ -207,6 +207,7 @@
         }
       }
 
+      console.log(anexo);
       let titulo = anexo?.children[0]?.children[0]?.innerHTML; // Documento principal
       if (!titulo) titulo = anexo?.children[0]?.innerHTML; // Anexos
       titulo = normalizarTexto(titulo);
