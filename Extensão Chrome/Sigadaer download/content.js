@@ -21,6 +21,108 @@
   const enviarLog = (tipo, msg) => {//envia o status para o popup
     chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
   };
+
+  const encontrarColunaTitulo = () => {
+    // Palavras-chave que indicam coluna de título/assunto
+    const palavrasChave = ['titulo', 'título', 'assunto'];
+
+    // Procurar por cabeçalhos de tabela
+    const cabecalho = Array.from(document.querySelectorAll('thead tr th, thead tr td, tr:first-child th, tr:first-child td'));
+
+    for (let i = 0; i < cabecalho.length; i++) {
+      const cabecalhoTexto = cabecalho[i].textContent?.trim().toLowerCase() || '';
+
+      // Verificar se o cabeçalho contém alguma palavra-chave
+      const contemPalavraChave = palavrasChave.some(palavra =>
+        cabecalhoTexto.includes(palavra)
+      );
+
+      if (contemPalavraChave) {
+        return i; // Retorna o índice da coluna
+      }
+    }
+
+    // Se não encontrou por palavra-chave, tentar heurística:
+    // A coluna de título geralmente é a mais larga ou contém mais texto
+    return encontrarColunaPorHeuristica();
+  }
+
+  const encontrarColunaPorHeuristica = () => {
+    // Pegar algumas linhas de exemplo para análise
+    const linhasExemplo = Array.from(document.querySelectorAll('tr')).slice(1, 6); // Pular cabeçalho, pegar até 5 linhas
+
+    if (linhasExemplo.length === 0) return 0; // Default para primeira coluna
+
+    const mediaComprimentoPorColuna = {};
+
+    /*
+    Para cada linha, percorre suas células:
+    Pega o textContent de cada célula.
+    Salva o número de caracteres em um array por coluna.
+    Por exemplo:
+    mediaComprimentoPorColuna[2] = [15, 20, 18]
+    (3 valores da 3ª coluna nas 3 linhas analisadas)
+    */
+    linhasExemplo.forEach(linha => {
+      Array.from(linha.children).forEach((celula, indice) => {
+        const texto = celula.textContent?.trim() || '';
+        if (!mediaComprimentoPorColuna[indice]) {
+          mediaComprimentoPorColuna[indice] = [];
+        }
+        mediaComprimentoPorColuna[indice].push(texto.length);
+      });
+    });
+
+    // Calcular média de comprimento por coluna
+    let melhorColuna = 0;
+    let maiorMedia = 0;
+
+    /*
+    Para cada coluna:
+    Calcula a média de comprimento dos textos.
+    Compara com a maior média atual.
+    Se essa média for maior, atualiza a "melhor coluna".
+    */
+    Object.keys(mediaComprimentoPorColuna).forEach(indice => {
+      const comprimentos = mediaComprimentoPorColuna[indice];
+      const media = comprimentos.reduce((a, b) => a + b, 0) / comprimentos.length;
+
+      if (media > maiorMedia) {
+        maiorMedia = media;
+        melhorColuna = parseInt(indice);
+      }
+    });
+
+    return melhorColuna;
+  }
+  // Função para extrair título baseado no índice da coluna
+  const extrairTitulo = (anexo, indiceColuna) => {
+    if (!anexo || !anexo.children || anexo.children.length <= indiceColuna) {
+      return null;
+    }
+
+    const celula = anexo.children[indiceColuna];
+
+    // Tentar diferentes estratégias para extrair o texto
+    let titulo = null;
+
+    // Estratégia 1: innerHTML do primeiro filho (para casos complexos)
+    if (celula.children && celula.children.length > 0) {
+      titulo = celula.children[0]?.innerHTML?.trim();
+    }
+
+    // Estratégia 2: innerHTML direto da célula
+    if (!titulo) {
+      titulo = celula.innerHTML?.trim();
+    }
+
+    // Estratégia 3: textContent como fallback
+    if (!titulo) {
+      titulo = celula.textContent?.trim();
+    }
+
+    return titulo || null;
+  }
   ///// FIM FUNÇÕES AUXILIARES --------------------------------------------------------
 
 
@@ -148,6 +250,7 @@
     let abaAnexos = null;
     let idAbaAnexos = (modelo === 'processo') ? 'Árvore do Processo' : 'Documento / Anexos / Referências';
 
+    // Identifica a aba que contém os documentos, conforme definido acima
     for (const aba of abasMenu) {
 
       aba.click();// Clica na aba atual
@@ -165,12 +268,17 @@
     }
 
     abaAnexos.click();
-    
     await new Promise(r => setTimeout(r, 1000)); // aguarda para carregar
 
+    // Mapeia os anexos para download
     let anexos = null;
-    if(modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
+    if (modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
     else anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
+
+
+    // Identificar a coluna da tabela que contém título ou assunto
+    const indiceColunaTitulo = encontrarColunaTitulo();
+
 
     // Processar um a um, em sequência
     for (const anexo of anexos) {
@@ -178,7 +286,6 @@
       const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
       if (tipoCell) {
         const tipoText = tipoCell.textContent?.trim() || '';
-
         //Pular "Referência do sistema"
         if (tipoText.includes('Referência do sistema')) continue;
       }
@@ -186,17 +293,13 @@
       // anexo.linkEl.click();
       anexo.click();
       await new Promise(r => setTimeout(r, 2000));
-
       let pdfUrl = null;
-
       // Tenta pegar de <a>
       const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
       if (link) pdfUrl = link.href;
-
       // Tenta pegar de <iframe>
       const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
       if (!pdfUrl && iframe) pdfUrl = iframe.src;
-
       // Extrai a URL real se estiver usando PDF.js
       if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
         const urlObj = new URL(pdfUrl);
@@ -207,9 +310,8 @@
         }
       }
 
-      console.log(anexo);
-      let titulo = anexo?.children[0]?.children[0]?.innerHTML; // Documento principal
-      if (!titulo) titulo = anexo?.children[0]?.innerHTML; // Anexos
+      // Usar a função genérica para extrair o título
+      let titulo = extrairTitulo(anexo, indiceColunaTitulo);
       titulo = normalizarTexto(titulo);
 
       if (!pdfUrl) {
