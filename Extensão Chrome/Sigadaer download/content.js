@@ -1,14 +1,62 @@
 (() => {
   ///// FUNÇÕES AUXILIARES ------------------------------------------------------------
+  const enviarLog = (tipo, msg) => {//envia o status para o popup
+    chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
+  };
+
   const normalizarTexto = texto => {
     return texto
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') //remove acentos
       .replace(/\.(docx|xlsx|pptx?|pdf)$/i, '') //remove extensões
-      .replace(/[^\w\s-]/g, '') //remove caracteres especiais
+      .replace(/[^\w\s,-]/g, '') //remove caracteres especiais (mantém vírgula, hífen, underline e espaço)
       .replace(/\s*-\s*/g, '-')// substitui " - " → "-"
       //.replace(/\s+/g, '_') //espaços por _
       .trim();
   };
+
+  const refinarNomeArquivo = (partesNome) => {
+    let { DATA, ID, ORIGEM, DESTINO, ASSUNTO } = partesNome;
+
+    //Se DESTINO for + que 2 OM, deixa como DIRINFRA
+    if (DESTINO.split(',').length > 2) DESTINO = "DIRINFRA";
+
+    // Monta o nome base
+    let baseNome = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
+
+    // Limita o tamanho total para 255 caracteres
+    const LIMITE_CHARS = 255;//geralmente base para WINDOWS
+    if (baseNome.length > LIMITE_CHARS) {
+      enviarLog("info", `O nome do arquivo ultrapassa o limite de ${LIMITE_CHARS} caracteres!`)
+      enviarLog("info", "Ajustando ASSUNTO...");
+
+      const extensao = ".pdf";
+      const sufixoProtegido = "_minuta";
+      const parteFixa = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_`;
+      // Calcular limite disponível para o ASSUNTO + sufixo protegido
+      const limiteAssuntoComSufixo = 255 - (parteFixa.length + extensao.length);
+
+      let assuntoFinal = ASSUNTO;
+
+      // Se o assunto termina com o sufixo protegido e ultrapassa o limite
+      if (ASSUNTO.endsWith(sufixoProtegido) && ASSUNTO.length > limiteAssuntoComSufixo) {
+        const limiteSemSufixo = limiteAssuntoComSufixo - sufixoProtegido.length;
+        const assuntoBase = ASSUNTO.slice(0, limiteSemSufixo);
+        assuntoFinal = `${assuntoBase}${sufixoProtegido}`;
+
+      } else if (ASSUNTO.length > limiteAssuntoComSufixo) {
+        // Trunca normalmente se não tiver sufixo protegido
+        assuntoFinal = ASSUNTO.slice(0, limiteAssuntoComSufixo);
+      }
+
+
+      if (ASSUNTO) enviarLog("ok", `ASSUNTO ajustado para '${assuntoFinal}'`);
+
+      //reconstrói o nome
+      baseNome = `${parteFixa}${assuntoFinal}${extensao}`;
+    }
+
+    return baseNome;
+  }
 
   const formatarData = dataStr => {//devolve no formato AAAAMMDD
     const partes = dataStr.split('/');
@@ -16,10 +64,6 @@
       return `${partes[2]}${partes[1].padStart(2, '0')}${partes[0].padStart(2, '0')}`;
     }
     return dataStr;
-  };
-
-  const enviarLog = (tipo, msg) => {//envia o status para o popup
-    chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
   };
 
   const encontrarColunaTitulo = () => {
@@ -96,7 +140,7 @@
     return melhorColuna;
   }
   // Função para extrair título baseado no índice da coluna
-  const extrairTitulo = (anexo, indiceColuna) => {
+  const extrairTituloOriginal = (anexo, indiceColuna) => {
     if (!anexo || !anexo.children || anexo.children.length <= indiceColuna) {
       return null;
     }
@@ -196,7 +240,7 @@
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
+        // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'minuta':
@@ -204,8 +248,9 @@
         ID = 'Localizador_' + normalizarTexto(dados['Localizador'] || '');
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
-        ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}_minuta.pdf`;
+        // ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        ASSUNTO = `${normalizarTexto(dados['Assunto'] || '')}_minuta`;
+        // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}_minuta.pdf`;
         break;
 
       case 'processo':
@@ -214,7 +259,7 @@
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
+        // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'despacho':
@@ -223,7 +268,7 @@
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
+        // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       case 'portaria':
@@ -232,15 +277,20 @@
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
+        // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
       default:
         return enviarLog('erro', `Modelo '${modelo}' não implementado.`);
     }
 
+    const partesNome = { DATA, ID, ORIGEM, DESTINO, ASSUNTO };
+    nomeArquivo = refinarNomeArquivo(partesNome);
+
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
-    return { DATA, ID, ASSUNTO, nomeArquivo };
+
+    const titulos = { DATA, ID, ASSUNTO, nomeArquivo };
+    return titulos;
   };
 
   const baixarAnexos = async (titulos, modelo) => {
@@ -282,6 +332,7 @@
 
     // Processar um a um, em sequência
     for (const anexo of anexos) {
+      // console.log(anexo);
       // Checar o "tipo" antes de baixar
       const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
       if (tipoCell) {
@@ -296,7 +347,7 @@
       let pdfUrl = null;
       // Tenta pegar de <a>
       const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-      if (link) pdfUrl = link.href;
+      if (link) docxUrl = link.href;
       // Tenta pegar de <iframe>
       const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
       if (!pdfUrl && iframe) pdfUrl = iframe.src;
@@ -311,7 +362,7 @@
       }
 
       // Usar a função genérica para extrair o título
-      let titulo = extrairTitulo(anexo, indiceColunaTitulo);
+      let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
       titulo = normalizarTexto(titulo);
 
       if (!pdfUrl) {
@@ -321,28 +372,53 @@
 
       const { DATA, ID, ASSUNTO, nomeArquivo } = titulos;
 
-      let nomeBase = 'Nome base';
-      if (ASSUNTO === titulo) nomeBase = nomeArquivo; // Documento principal
-      else nomeBase = `${DATA}_${ID}_${titulo}`; // Anexos
+      let nomeBase;
+      //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
+      //se for o DOC principal vai ser o mesmo de 'titulo'
+      if (ASSUNTO === titulo || ASSUNTO === titulo+'_minuta') nomeBase = nomeArquivo; // Documento principal
+      else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
 
       baixarComNomePersonalizado(pdfUrl, nomeBase);
     }
   };
 
 
-  const baixarComNomePersonalizado = (url, nome) => {
-    enviarLog('info', `Iniciando download com nome: ${nome}`);
+  const baixarComNomePersonalizado = (url, nomeBase) => {
+    enviarLog('info', `Iniciando download com nome: ${nomeBase}`);
+
+
 
     fetch(url)
       .then(res => res.blob())
       .then(blob => {
+
+        const mimeType = blob.type;
+
+        const extensoesPorMime = {
+          'application/pdf': '.pdf',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx'
+        };
+
+        const jaTemExtensao = /\.[a-zA-Z0-9]+$/.test(nomeBase);
+        const extensaoDetectada = extensoesPorMime[mimeType] || '';
+        let nomeFinal = nomeBase;
+
+        if (!jaTemExtensao && extensaoDetectada) {
+          nomeFinal += extensaoDetectada;
+          enviarLog('info', `Extensão '${extensaoDetectada}' adicionada ao nome final: ${nomeFinal}`);
+        }
+
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = nome;
+        a.download = nomeFinal;
         document.body.appendChild(a);
         a.click();
         a.remove();
-        enviarLog('ok', `Download finalizado como: ${nome}`);
+        URL.revokeObjectURL(a.href);
+
+        enviarLog('ok', `Download finalizado como: ${nomeFinal}`);
 
       })
       .catch(err => enviarLog('erro', `Erro no fetch personalizado: ${err}`));
