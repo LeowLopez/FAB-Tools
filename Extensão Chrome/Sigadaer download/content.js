@@ -375,54 +375,54 @@
       let nomeBase;
       //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
       //se for o DOC principal vai ser o mesmo de 'titulo'
-      if (ASSUNTO === titulo || ASSUNTO === titulo+'_minuta') nomeBase = nomeArquivo; // Documento principal
+      if (ASSUNTO === titulo || ASSUNTO === titulo + '_minuta') nomeBase = nomeArquivo; // Documento principal
       else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
 
-      baixarComNomePersonalizado(pdfUrl, nomeBase);
+      await baixarComNomePersonalizado(pdfUrl, nomeBase);
     }
   };
 
 
-  const baixarComNomePersonalizado = (url, nomeBase) => {
+  const baixarComNomePersonalizado = async (url, nomeBase) => {
     enviarLog('info', `Iniciando download com nome: ${nomeBase}`);
 
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
 
+      const mimeType = blob.type;
+      const extensoesPorMime = {
+        'application/pdf': '.pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx'
+      };
 
-    fetch(url)
-      .then(res => res.blob())
-      .then(blob => {
+      const jaTemExtensao = /\.[a-zA-Z0-9]+$/.test(nomeBase);
+      const extensaoDetectada = extensoesPorMime[mimeType] || '';
+      let nomeFinal = nomeBase;
 
-        const mimeType = blob.type;
+      if (!jaTemExtensao && extensaoDetectada) {
+        nomeFinal += extensaoDetectada;
+        enviarLog('info', `Extensão '${extensaoDetectada}' adicionada ao nome final: ${nomeFinal}`);
+      }
 
-        const extensoesPorMime = {
-          'application/pdf': '.pdf',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
-          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx'
-        };
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = nomeFinal;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
 
-        const jaTemExtensao = /\.[a-zA-Z0-9]+$/.test(nomeBase);
-        const extensaoDetectada = extensoesPorMime[mimeType] || '';
-        let nomeFinal = nomeBase;
+      enviarLog('ok', `Download finalizado como: ${nomeFinal}`);
 
-        if (!jaTemExtensao && extensaoDetectada) {
-          nomeFinal += extensaoDetectada;
-          enviarLog('info', `Extensão '${extensaoDetectada}' adicionada ao nome final: ${nomeFinal}`);
-        }
+    } catch (err) {
+      enviarLog('erro', `Erro ao realizar download: ${err}`);
 
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = nomeFinal;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(a.href);
-
-        enviarLog('ok', `Download finalizado como: ${nomeFinal}`);
-
-      })
-      .catch(err => enviarLog('erro', `Erro no fetch personalizado: ${err}`));
+    }
   };
+
 
   // Listener para mensagem vinda do popup ou background (Aqui que aciona a função quando recebe o clique do popup)
   chrome.runtime.onMessage.addListener(async (msg, sender, sendResponse) => {
@@ -437,6 +437,7 @@
       if (!titulos) return;
 
       await baixarAnexos(titulos, modelo);
+      
       enviarLog("info", "Processo finalizado!")
     }
   });
