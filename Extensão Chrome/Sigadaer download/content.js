@@ -437,8 +437,8 @@
       if (!titulos) return;
 
       await baixarAnexos(titulos, modelo);
-      
-      enviarLog("info", "Processo finalizado!")
+
+      enviarLog("fim", "Processo finalizado!")
     }
   });
 

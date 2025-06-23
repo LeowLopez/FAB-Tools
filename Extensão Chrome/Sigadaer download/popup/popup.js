@@ -27,13 +27,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         p.style.color = 'green';
         break;
       case 'info':
-      default:
         p.style.color = 'black';
+        break;
+
+      default:
+        p.style.color = 'blue';
         break;
     }
 
     logEl.appendChild(p);
-    logEl.scrollTop = logEl.scrollHeight; // rola para o fim 8==> ? lá ele.
+    logEl.scrollTop = logEl.scrollHeight; // rola para o final
   }
 });
 
