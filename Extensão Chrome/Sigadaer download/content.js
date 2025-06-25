@@ -282,6 +282,7 @@
     if (!dados['Assunto']) {
       enviarLog("info", "Assunto não encontrado nos dados. Tentando definir por título...");
       dados['Assunto'] = await definirAssuntoPorTitulo(modelo);
+      console.log(dados['Assunto']);
     }
 
     switch (modelo) {
@@ -304,13 +305,13 @@
         // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}_minuta.pdf`;
         break;
 
+      case 'processounico':
       case 'processo':
         DATA = formatarData(dados['Data de elaboração'] || '');
         ID = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));//remove pontos ou barras
         ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || dados['Orgão de origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
-        console.log(`ID: ${ID}, ORIGEM: ${ORIGEM}, DESTINO: ${DESTINO}, ASSUNTO: ${ASSUNTO}`);
         // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
@@ -338,7 +339,7 @@
 
     const partesNome = { DATA, ID, ORIGEM, DESTINO, ASSUNTO };
     nomeArquivo = refinarNomeArquivo(partesNome);
-    
+
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
 
     const titulos = { DATA, ID, ASSUNTO, nomeArquivo };
@@ -375,7 +376,7 @@
     await new Promise(r => setTimeout(r, 1000)); // aguarda para carregar
 
 
-    if (modelo === 'processo') {
+    if (modelo === 'processounico') {
       // Processamento específico para modelo 'processo'
       enviarLog("info", "Procurando botão de impressão...");
 
@@ -481,65 +482,64 @@
       return;
     }
 
-    // Mapeia os anexos para download
-    // let anexos = null;
-    // /* if (modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
-    // else  */
-    // anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
+    //Mapeia os anexos para download
+    let anexos = null;
+    if (modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
+    else anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
 
 
-    // // Identificar a coluna da tabela que contém título ou assunto
-    // const indiceColunaTitulo = encontrarColunaTitulo();
+    // Identificar a coluna da tabela que contém título ou assunto
+    const indiceColunaTitulo = encontrarColunaTitulo();
 
 
-    // // Processar um a um, em sequência
-    // for (const anexo of anexos) {
-    //   // console.log(anexo);
-    //   // Checar o "tipo" antes de baixar
-    //   const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
-    //   if (tipoCell) {
-    //     const tipoText = tipoCell.textContent?.trim() || '';
-    //     //Pular "Referência do sistema"
-    //     if (tipoText.includes('Referência do sistema')) continue;
-    //   }
+    // Processar um a um, em sequência
+    for (const anexo of anexos) {
+      // console.log(anexo);
+      // Checar o "tipo" antes de baixar
+      const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
+      if (tipoCell) {
+        const tipoText = tipoCell.textContent?.trim() || '';
+        //Pular "Referência do sistema"
+        if (tipoText.includes('Referência do sistema')) continue;
+      }
 
-    //   // anexo.linkEl.click();
-    //   anexo.click();
-    //   await new Promise(r => setTimeout(r, 2000));
-    //   let pdfUrl = null;
-    //   // Tenta pegar de <a>
-    //   const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-    //   if (link) docxUrl = link.href;
-    //   // Tenta pegar de <iframe>
-    //   const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
-    //   if (!pdfUrl && iframe) pdfUrl = iframe.src;
-    //   // Extrai a URL real se estiver usando PDF.js
-    //   if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
-    //     const urlObj = new URL(pdfUrl);
-    //     const realUrl = urlObj.searchParams.get('file');
-    //     if (realUrl) {
-    //       pdfUrl = realUrl;
-    //       /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
-    //     }
-    //   }
+      // anexo.linkEl.click();
+      anexo.click();
+      await new Promise(r => setTimeout(r, 2000));
+      let pdfUrl = null;
+      // Tenta pegar de <a>
+      const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
+      if (link) docxUrl = link.href;
+      // Tenta pegar de <iframe>
+      const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
+      if (!pdfUrl && iframe) pdfUrl = iframe.src;
+      // Extrai a URL real se estiver usando PDF.js
+      if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+        const urlObj = new URL(pdfUrl);
+        const realUrl = urlObj.searchParams.get('file');
+        if (realUrl) {
+          pdfUrl = realUrl;
+          /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
+        }
+      }
 
-    //   // Usar a função genérica para extrair o título
-    //   let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
-    //   titulo = normalizarTexto(titulo);
+      // Usar a função genérica para extrair o título
+      let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
+      titulo = normalizarTexto(titulo);
 
-    //   if (!pdfUrl) {
-    //     enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
-    //     continue;
-    //   }
+      if (!pdfUrl) {
+        enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
+        continue;
+      }
 
-    //   let nomeBase;
-    //   //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
-    //   //se for o DOC principal vai ser o mesmo de 'titulo'
-    //   if (ASSUNTO === titulo || ASSUNTO === titulo + '_minuta') nomeBase = nomeArquivo; // Documento principal
-    //   else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
+      let nomeBase;
+      //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
+      //se for o DOC principal vai ser o mesmo de 'titulo'
+      if (ASSUNTO === titulo || ASSUNTO === titulo + '_minuta') nomeBase = nomeArquivo; // Documento principal
+      else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
 
-    //   await baixarComNomePersonalizado(pdfUrl, nomeBase);
-    // }
+      await baixarComNomePersonalizado(pdfUrl, nomeBase);
+    }
   };
 
 
@@ -593,7 +593,7 @@
       const dados = await extrairDados();
       if (!dados) return;
 
-      const titulos = extrairTitulos(dados, modelo);
+      const titulos = await extrairTitulos(dados, modelo);
       if (!titulos) return;
 
       await baixarAnexos(titulos, modelo);
