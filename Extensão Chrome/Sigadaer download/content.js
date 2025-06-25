@@ -282,7 +282,6 @@
     if (!dados['Assunto']) {
       enviarLog("info", "Assunto não encontrado nos dados. Tentando definir por título...");
       dados['Assunto'] = await definirAssuntoPorTitulo(modelo);
-      console.log(dados['Assunto']);
     }
 
     switch (modelo) {
@@ -353,7 +352,7 @@
 
     const abasMenu = Array.from(document.querySelectorAll('.nav-tabs li a') || []);
     let abaAnexos = null;
-    let idAbaAnexos = (modelo === 'processo') ? 'Árvore do Processo' : 'Documento / Anexos / Referências';
+    let idAbaAnexos = (modelo === 'processo' || modelo === 'processounico') ? 'Árvore do Processo' : 'Documento / Anexos / Referências';
 
     // Identifica a aba que contém os documentos, conforme definido acima
     for (const aba of abasMenu) {
@@ -455,7 +454,8 @@
         enviarLog("info", "Cole o nome (Ctrl+V) ao renomear o arquivo baixado!");
       } else {
         enviarLog("erro", "Não foi possível copiar o nome para área de transferência");
-        enviarLog("info", `Nome sugerido para o arquivo: ${nomeCompleto}`);
+        enviarLog("info", `Nome sugerido para o arquivo:`);
+        enviarLog("copia", `"${nomeCompleto}"`);
       }
 
       // Clica no botão de impressão
