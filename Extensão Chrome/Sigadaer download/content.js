@@ -59,10 +59,16 @@
   }
 
   const formatarData = dataStr => {//devolve no formato AAAAMMDD
-    const partes = dataStr.split('/');
+    if (!dataStr) return dataStr;
+
+    // Separa a parte da data da hora, se existir
+    const [data] = dataStr.trim().split(' ');
+
+    const partes = data.split('/');
     if (partes.length === 3) {
       return `${partes[2]}${partes[1].padStart(2, '0')}${partes[0].padStart(2, '0')}`;
     }
+
     return dataStr;
   };
 
@@ -167,6 +173,46 @@
 
     return titulo || null;
   }
+
+  const definirAssuntoPorTitulo = async (modelo) => {
+
+    const abasMenu = Array.from(document.querySelectorAll('.nav-tabs li a') || []);
+    let abaAnexos = null;
+    let idAbaAnexos = (modelo === 'processo' || modelo === 'processounico') ? 'Árvore do Processo' : 'Documento / Anexos / Referências';
+
+    // Identifica a aba que contém os documentos, conforme definido acima
+    for (const aba of abasMenu) {
+
+      aba.click();// Clica na aba atual
+      await new Promise(resolve => setTimeout(resolve, 300)); // Aguarda um pequeno tempo para a aba renderizar
+
+      let abaNome = aba?.innerText?.trim();
+      if (abaNome === idAbaAnexos) abaAnexos = aba;//identifica onde estão os documentos
+      if (abaAnexos) break;//interrompe o laço
+
+    }
+
+    if (!abaAnexos) {
+      enviarLog('erro', `Aba ${idAbaAnexos} não encontrada! (Verifique se o modelo selecionado está correto)`);
+      return;
+    }
+
+    abaAnexos.click();
+    await new Promise(r => setTimeout(r, 1000)); // aguarda para carregar
+
+    let assunto, anexos = null;
+
+    if (modelo === 'processo' || modelo === 'processounico') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
+    else anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
+    let anexo = anexos[0]; // Pega o primeiro anexo (principal, para pegar assunto)
+
+    // Identificar a coluna da tabela que contém título ou assunto
+    const indiceColunaTitulo = encontrarColunaTitulo();
+    let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
+    assunto = normalizarTexto(titulo);
+
+    return assunto;
+  }
   ///// FIM FUNÇÕES AUXILIARES --------------------------------------------------------
 
 
@@ -227,11 +273,16 @@
     return dados;
   };
 
-  const extrairTitulos = (dados, modelo) => {
+  const extrairTitulos = async (dados, modelo) => {
     if (!modelo) modelo = 'oficio';
 
     // Declare variables at the top
     let DATA, ID, ORIGEM, DESTINO, ASSUNTO, nomeArquivo;
+
+    if (!dados['Assunto']) {
+      enviarLog("info", "Assunto não encontrado nos dados. Tentando definir por título...");
+      dados['Assunto'] = await definirAssuntoPorTitulo(modelo);
+    }
 
     switch (modelo) {
       case 'oficio':
@@ -256,9 +307,10 @@
       case 'processo':
         DATA = formatarData(dados['Data de elaboração'] || '');
         ID = 'NUP ' + normalizarTexto((dados['NUP'] || '').replace(/[./]/g, ''));//remove pontos ou barras
-        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || '');
+        ORIGEM = normalizarTexto(dados['Órgão de Origem'] || dados['Local de Origem'] || dados['Orgão de origem'] || '');
         DESTINO = normalizarTexto(dados['Órgão de Destino'] || '');
         ASSUNTO = normalizarTexto(dados['Assunto'] || '');
+        console.log(`ID: ${ID}, ORIGEM: ${ORIGEM}, DESTINO: ${DESTINO}, ASSUNTO: ${ASSUNTO}`);
         // nomeArquivo = `${DATA}_${ID}_${ORIGEM}-${DESTINO}_${ASSUNTO}.pdf`;
         break;
 
@@ -286,7 +338,7 @@
 
     const partesNome = { DATA, ID, ORIGEM, DESTINO, ASSUNTO };
     nomeArquivo = refinarNomeArquivo(partesNome);
-
+    
     if (!nomeArquivo) return enviarLog('erro', 'Nome de arquivo não definido para esse modelo.');
 
     const titulos = { DATA, ID, ASSUNTO, nomeArquivo };
@@ -294,6 +346,8 @@
   };
 
   const baixarAnexos = async (titulos, modelo) => {
+    let { DATA, ID, ASSUNTO, nomeArquivo } = titulos;
+
     enviarLog("info", "Identificando documentos para download...");
 
     const abasMenu = Array.from(document.querySelectorAll('.nav-tabs li a') || []);
@@ -320,66 +374,172 @@
     abaAnexos.click();
     await new Promise(r => setTimeout(r, 1000)); // aguarda para carregar
 
-    // Mapeia os anexos para download
-    let anexos = null;
-    if (modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
-    else anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
 
+    if (modelo === 'processo') {
+      // Processamento específico para modelo 'processo'
+      enviarLog("info", "Procurando botão de impressão...");
 
-    // Identificar a coluna da tabela que contém título ou assunto
-    const indiceColunaTitulo = encontrarColunaTitulo();
+      // Procura o botão de impressão
+      const botaoImprimir = Array.from(document.querySelectorAll('button')).find(btn => {
+        return btn.className.includes('btn btn-secondary') &&
+          btn.innerHTML.includes('print') &&
+          btn.innerHTML.includes('Imprimir');
+      });
 
-
-    // Processar um a um, em sequência
-    for (const anexo of anexos) {
-      // console.log(anexo);
-      // Checar o "tipo" antes de baixar
-      const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
-      if (tipoCell) {
-        const tipoText = tipoCell.textContent?.trim() || '';
-        //Pular "Referência do sistema"
-        if (tipoText.includes('Referência do sistema')) continue;
+      if (!botaoImprimir) {
+        enviarLog('erro', 'Botão de impressão não encontrado!');
+        return;
       }
 
-      // anexo.linkEl.click();
-      anexo.click();
-      await new Promise(r => setTimeout(r, 2000));
-      let pdfUrl = null;
-      // Tenta pegar de <a>
-      const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
-      if (link) docxUrl = link.href;
-      // Tenta pegar de <iframe>
-      const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
-      if (!pdfUrl && iframe) pdfUrl = iframe.src;
-      // Extrai a URL real se estiver usando PDF.js
-      if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
-        const urlObj = new URL(pdfUrl);
-        const realUrl = urlObj.searchParams.get('file');
-        if (realUrl) {
-          pdfUrl = realUrl;
-          /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
+      // Função para copiar texto para o clipboard
+      async function copiarParaClipboard(texto) {
+        try {
+          // Força o foco na janela/documento
+          window.focus();
+          document.body.focus();
+
+          // Aguarda um pouco para garantir que o foco foi estabelecido
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(texto);
+            return true;
+          } else {
+            // Fallback usando textarea (sempre funciona)
+            const textArea = document.createElement('textarea');
+            textArea.value = texto;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            textArea.style.top = '-999999px';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+
+            // Garante que o texto está selecionado
+            textArea.setSelectionRange(0, textArea.value.length);
+
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+          }
+        } catch (err) {
+          console.error('Erro ao copiar para clipboard:', err);
+
+          // Última tentativa usando apenas o método antigo
+          try {
+            const textArea = document.createElement('textarea');
+            textArea.value = texto;
+            textArea.style.position = 'absolute';
+            textArea.style.left = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+          } catch (fallbackErr) {
+            console.error('Erro no fallback:', fallbackErr);
+            return false;
+          }
         }
       }
 
-      // Usar a função genérica para extrair o título
-      let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
-      titulo = normalizarTexto(titulo);
+      // Copia o nome do arquivo para o clipboard
+      const nomeCompleto = nomeArquivo;
 
-      if (!pdfUrl) {
-        enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
-        continue;
+      const copiado = await copiarParaClipboard(nomeCompleto);
+
+      if (copiado) {
+        enviarLog("info", `Nome do arquivo copiado para área de transferência: "${nomeCompleto}"`);
+        enviarLog("info", "Cole o nome (Ctrl+V) ao renomear o arquivo baixado!");
+      } else {
+        enviarLog("erro", "Não foi possível copiar o nome para área de transferência");
+        enviarLog("info", `Nome sugerido para o arquivo: ${nomeCompleto}`);
       }
 
-      const { DATA, ID, ASSUNTO, nomeArquivo } = titulos;
+      // Clica no botão de impressão
+      botaoImprimir.click();
+      await new Promise(r => setTimeout(r, 1500));
 
-      let nomeBase;
-      //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
-      //se for o DOC principal vai ser o mesmo de 'titulo'
-      if (ASSUNTO === titulo || ASSUNTO === titulo + '_minuta') nomeBase = nomeArquivo; // Documento principal
-      else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
+      // Procura o botão "Imprimir" na caixa de diálogo
+      const botaoImprimirDialog = Array.from(document.querySelectorAll('button')).find(btn => {
+        return btn.type === 'button' &&
+          btn.className.includes('btn btn-primary col-2') &&
+          btn.textContent?.trim() === 'Imprimir';
+      });
 
-      await baixarComNomePersonalizado(pdfUrl, nomeBase);
+      if (!botaoImprimirDialog) {
+        enviarLog('erro', 'Botão "Imprimir" na caixa de diálogo não encontrado!');
+        return;
+      }
+
+      // Clica no botão "Imprimir" da caixa de diálogo
+      enviarLog("info", "Clicando no botão Imprimir do diálogo...");
+      enviarLog("info", "O arquivo será baixado com o nome original. Renomeie-o usando Ctrl+V!");
+      botaoImprimirDialog.click();
+
+      return;
     }
+
+    // Mapeia os anexos para download
+    // let anexos = null;
+    // /* if (modelo === 'processo') anexos = Array.from(document.querySelectorAll('div')).filter(tr => tr.classList.contains('row-peca'));
+    // else  */
+    // anexos = Array.from(document.querySelectorAll('tr')).filter(tr => tr.classList.contains('clicavel'));
+
+
+    // // Identificar a coluna da tabela que contém título ou assunto
+    // const indiceColunaTitulo = encontrarColunaTitulo();
+
+
+    // // Processar um a um, em sequência
+    // for (const anexo of anexos) {
+    //   // console.log(anexo);
+    //   // Checar o "tipo" antes de baixar
+    //   const tipoCell = anexo.children[2]; // terceira coluna deveria ser "Tipo"
+    //   if (tipoCell) {
+    //     const tipoText = tipoCell.textContent?.trim() || '';
+    //     //Pular "Referência do sistema"
+    //     if (tipoText.includes('Referência do sistema')) continue;
+    //   }
+
+    //   // anexo.linkEl.click();
+    //   anexo.click();
+    //   await new Promise(r => setTimeout(r, 2000));
+    //   let pdfUrl = null;
+    //   // Tenta pegar de <a>
+    //   const link = [...document.querySelectorAll('a')].find(a => a.href?.includes('.pdf'));
+    //   if (link) docxUrl = link.href;
+    //   // Tenta pegar de <iframe>
+    //   const iframe = [...document.querySelectorAll('iframe')].find(i => i.src?.includes('.pdf'));
+    //   if (!pdfUrl && iframe) pdfUrl = iframe.src;
+    //   // Extrai a URL real se estiver usando PDF.js
+    //   if (pdfUrl?.includes('viewer.html') && pdfUrl.includes('file=')) {
+    //     const urlObj = new URL(pdfUrl);
+    //     const realUrl = urlObj.searchParams.get('file');
+    //     if (realUrl) {
+    //       pdfUrl = realUrl;
+    //       /* enviarLog('info', `URL real do PDF extraída: ${pdfUrl}`); */
+    //     }
+    //   }
+
+    //   // Usar a função genérica para extrair o título
+    //   let titulo = extrairTituloOriginal(anexo, indiceColunaTitulo);
+    //   titulo = normalizarTexto(titulo);
+
+    //   if (!pdfUrl) {
+    //     enviarLog('erro', `Não foi possível encontrar a URL do PDF para o anexo "${titulo}"`);
+    //     continue;
+    //   }
+
+    //   let nomeBase;
+    //   //como ASSUNTO que veio não é o modificado na "refinarNomeArquivo()"
+    //   //se for o DOC principal vai ser o mesmo de 'titulo'
+    //   if (ASSUNTO === titulo || ASSUNTO === titulo + '_minuta') nomeBase = nomeArquivo; // Documento principal
+    //   else nomeBase = `${DATA}_${ID}_${titulo}`.slice(0, 250); // Anexos
+
+    //   await baixarComNomePersonalizado(pdfUrl, nomeBase);
+    // }
   };
 
 
