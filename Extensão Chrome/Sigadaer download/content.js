@@ -450,12 +450,12 @@
       const copiado = await copiarParaClipboard(nomeCompleto);
 
       if (copiado) {
-        enviarLog("info", `Nome do arquivo copiado para área de transferência: "${nomeCompleto}"`);
+        enviarLog("info", `Nome do arquivo copiado para área de transferência: "${nomeCompleto}".`);
         enviarLog("info", "Cole o nome (Ctrl+V) ao renomear o arquivo baixado!");
       } else {
-        enviarLog("erro", "Não foi possível copiar o nome para área de transferência");
-        enviarLog("info", `Nome sugerido para o arquivo:`);
-        enviarLog("copia", `"${nomeCompleto}"`);
+        enviarLog("erro", `Não foi possível copiar o nome '${nomeCompleto}' para a área de transferência.`);
+        enviarLog("info", `Clique no link abaixo para copiar manualmente:`);
+        enviarLog("copia", `${nomeCompleto}`);
       }
 
       // Clica no botão de impressão

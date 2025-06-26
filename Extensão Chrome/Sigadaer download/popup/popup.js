@@ -17,10 +17,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     const p = document.createElement('p');
 
     if (msg.tipo === 'copia') {
+
       const a = document.createElement('a');
       a.href = '#';
       a.textContent = '[Copiar conteúdo]';
-      a.style.color = 'blue';
+      a.style.color = 'mediumblue';
       a.style.textDecoration = 'underline';
       a.addEventListener('click', (e) => {
         e.preventDefault();
@@ -34,9 +35,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           });
       });
       p.appendChild(a);
-    } else {
-      p.textContent = msg.log;
 
+
+    } else {
+
+      p.textContent = msg.log;
       // Aplica a cor baseada no tipo
       switch (msg.tipo) {
         case 'erro':

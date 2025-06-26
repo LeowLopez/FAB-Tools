@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SIGADAER PDF Renomeador",
-  "version": "1.0",
+  "version": "1.1",
   "description": "Intercepta o download de PDFs e renomeia conforme os metadados.",
   "permissions": ["scripting", "activeTab", "tabs", "https://api.sigadaer.intraer/*"],
   "host_permissions": [
