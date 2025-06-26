@@ -1,4 +1,43 @@
 (() => {
+  ///// INÍCIO DO SCRIPT SILOMS ---------------------------------------------------------------
+  const baixarSiloms = async () => {
+    const links = Array.from(document.querySelectorAll('a[target="frameDownload"]'));
+
+    for (let index = 0; index < links.length; index++) {
+      const link = links[index];
+      const i = String(index + 1).padStart(4, '0');
+      const span = document.querySelector(`span#span_NM_DOCUMENTO_PA_${i}`);
+      const nome = span ? span.innerText.trim().replace(/[\\/:*?"<>|]/g, '') : `arquivo_${i}`;
+
+      try {
+        const response = await fetch(link.href);
+        if (!response.ok) throw new Error(`Erro ao buscar: ${response.statusText}`);
+
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nome;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        chrome.runtime.sendMessage({
+          from: 'content_script',
+          tipo: 'ok',
+          log: `Baixado: ${nome}`,
+          progressoSiloms: { atual: index + 1, total: links.length }
+        });
+
+        await new Promise(r => setTimeout(r, 500));
+      } catch (error) {
+        chrome.runtime.sendMessage({ from: 'content_script', tipo: 'erro', log: `${nome}: ${error.message}` });
+      }
+    }
+  }
+
+  ///// INÍCIO DO SCRIPT SIGADER ---------------------------------------------------------------
   ///// FUNÇÕES AUXILIARES ------------------------------------------------------------
   const enviarLog = (tipo, msg) => {//envia o status para o popup
     chrome.runtime.sendMessage({ from: 'content_script', tipo, log: msg });
@@ -599,6 +638,9 @@
       await baixarAnexos(titulos, modelo);
 
       enviarLog("fim", "Processo finalizado!")
+    }
+    if (msg.action === 'baixar_siloms') {
+      baixarSiloms();
     }
   });
 

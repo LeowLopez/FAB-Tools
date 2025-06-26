@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
-  "name": "SIGADAER PDF Renomeador",
-  "version": "1.1",
-  "description": "Intercepta o download de PDFs e renomeia conforme os metadados.",
+  "name": "EPAD Downloader",
+  "version": "2.0",
+  "description": "Baixa documentos automaticamente com nomes organizados no SIGADAER e SILOMS.",
   "permissions": ["scripting", "activeTab", "tabs", "https://api.sigadaer.intraer/*"],
   "host_permissions": [
-    "*://*.sigadaer.intraer/*"
+    "*://*.sigadaer.intraer/*",
+    "*://*.siloms.intraer/*"
   ],
   "action": {
     "default_popup": "popup/index.html",
@@ -13,7 +14,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.sigadaer.intraer/*"],
+      "matches": ["*://*.sigadaer.intraer/*", "*://*.siloms.intraer/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

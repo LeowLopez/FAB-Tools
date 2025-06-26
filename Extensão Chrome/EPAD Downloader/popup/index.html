@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <title>EPAD Downloader</title>
+  <link rel="stylesheet" href="style.css" />
+  <script defer src="popup.js"></script>
+</head>
+
+<body>
+
+  <div id="Popup" align="center">
+    <div id="titulo">
+      <strong>EPAD Downloader 2.0</strong>
+    </div>
+
+    <div class="abas">
+      <button id="abaSigadaer">SIGADAER</button>
+      <button id="abaSiloms">SILOMS</button>
+    </div>
+
+    <div id="areaSigadaer">
+      <p><strong>Baixar PDF Renomeado (SIGADAER)</strong></p>
+
+      <select id="modeloSelect">
+        <option value="oficio">📄 Ofício</option>
+        <option value="minuta">📝 Minuta</option>
+        <option value="processo">📂 Processo</option>
+        <option value="processounico">🗂️​ Processo Único</option>
+        <option value="despacho">📑 Despacho</option>
+        <option value="portaria">📜 Portaria</option>
+      </select>
+      <br />
+      <button id="baixarBtn">Baixar PDF</button>
+    </div>
+
+    <div id="areaSiloms" style="display: none;">
+      <p><strong>Baixar documentos do SILOMS</strong></p>
+      <button id="baixarSilomsBtn">Iniciar Download</button>
+      <p id="statusSiloms" style="margin-top: 10px;">Aguardando...</p>
+    </div>
+  </div>
+
+  <div id="logConsole" class="oculto"></div>
+
+  <div id="creditos" align="center">
+    <a class="semLink" href="#" id="toggleCreditos">
+      Créditos <span id="setaCreditos">▼</span>
+    </a>
+    <div id="creditosDetalhados" class="ocultoCreditos">
+      <p><strong>Desenvolvido pela Seção de Análise de Dados da DIRINFRA</strong></p>
+      <p>Idealizador: - Cap QOEng CIV RAMON Nunes de Oliveira</p>
+      <p>Desenvolvedores:</p>
+      <p>- 1º Ten QOEng CIV Gabriel LESSA de Araújo;</p>
+      <p>- 2º Ten QOCon CIV LEÔNNYO Wender Lopes.</p><br />
+      <a href="https://github.com/LeowLopez/FAB-Tools" target="_blank">Versão 2.0 - junho/2025</a>
+    </div>
+  </div>
+
+</body>
+
+</html>
