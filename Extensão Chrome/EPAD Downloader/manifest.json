@@ -3,14 +3,14 @@
   "name": "EPAD Downloader",
   "version": "2.0",
   "description": "Baixa documentos automaticamente com nomes organizados no SIGADAER e SILOMS.",
-  "permissions": ["scripting", "activeTab", "tabs", "https://api.sigadaer.intraer/*"],
+  "permissions": ["scripting", "activeTab", "tabs"],
   "host_permissions": [
     "*://*.sigadaer.intraer/*",
     "*://*.siloms.intraer/*"
   ],
   "action": {
     "default_popup": "popup/index.html",
-    "default_icon": "icon.png"
+    "default_icon": "icon_inactive.png"
   },
   "content_scripts": [
     {
@@ -21,5 +21,8 @@
   ],
   "icons": {
     "128": "icon.png"
+  },
+  "background": {
+    "service_worker": "background.js"
   }
 }

@@ -24,7 +24,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.progressoSiloms) {
       const status = document.getElementById('statusSiloms');
       if (status) {
-        if(msg.progressoSiloms.total === msg.progressoSiloms.atual ) {
+        if (msg.progressoSiloms.total === msg.progressoSiloms.atual) {
           status.textContent = "Download concluído!";
         }
         else status.textContent = `Baixando ${msg.progressoSiloms.atual} de ${msg.progressoSiloms.total} documentos...`;
@@ -55,6 +55,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             });
         });
         p.appendChild(a);
+        
       } else {
         p.textContent = msg.log;
         switch (msg.tipo) {
@@ -113,5 +114,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Inicializa com SIGADAER ativo
-  ativaAba(sigBtn, sigArea, silBtn, silArea);
+  // ativaAba(sigBtn, sigArea, silBtn, silArea);
+
+
+  // Detecta o site atual e ativa a aba correspondente
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const url = tabs[0].url || '';
+
+    if (url.includes('siloms.intraer')) {
+      ativaAba(silBtn, silArea, sigBtn, sigArea);
+    } else {
+      ativaAba(sigBtn, sigArea, silBtn, silArea);
+    }
+  });
 });

@@ -1,4 +1,6 @@
 (() => {
+  chrome.runtime.sendMessage({ action: 'verificar_site' });
+
   ///// INÍCIO DO SCRIPT SILOMS ---------------------------------------------------------------
   const baixarSiloms = async () => {
     const links = Array.from(document.querySelectorAll('a[target="frameDownload"]'));
