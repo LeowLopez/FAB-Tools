@@ -1,6 +1,6 @@
 ## Como instalar
 
-1. Faça o download e **extraia a pasta** da extensão.
+1. Faça o download e **extraia a pasta** da extensão (EPAD Downloader).
 2. Abra o Chrome e acesse:
 
    ```
