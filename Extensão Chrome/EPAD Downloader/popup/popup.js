@@ -10,9 +10,11 @@ document.getElementById('baixarBtn').addEventListener('click', () => {
 });
 
 document.getElementById('baixarSilomsBtn').addEventListener('click', () => {
+  const incluirSequencial = document.getElementById('checkSiloms').checked;
   chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
     chrome.tabs.sendMessage(tabs[0].id, {
-      action: 'baixar_siloms'
+      action: 'baixar_siloms',
+      incluirSequencial: incluirSequencial
     });
   });
 });
